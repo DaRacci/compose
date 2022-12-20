@@ -1,0 +1,239 @@
+version: "3.9"
+
+# TODO: Remove once survival is migrated away from AMP.
+x-health: &healthcheck
+  healthcheck:
+    test: ["CMD-SHELL", "if [ -z $$(pgrep AMP) ]; then exit 1; else echo 'AMP Found'; fi"]
+    interval: 5m
+    timeout: 3s
+    retries: 1
+    start_period: 15s
+
+x-common-env: &common-env
+  DEBUG_EXEC: true
+  EXEC_DIRECTLY: true
+  UID: ${UID}
+  GID: ${GID}
+  TZ: ${TIMEZONE}
+  JVM_XX_OPTS: "-XX:MaxRAMPercentage=95" # 95% of the container's memory.
+  COPY_CONFIG_DEST: "/data"
+  PATCH_DEFINITIONS: "/patches"
+  REPLACE_ENV_VARIABLES: true
+  REPLACE_ENV_DURING_SYNC: false
+  SYNC_SKIP_NEWER_IN_DESTINATION: false
+  REPLACE_ENV_VARIABLE_PREFIX: VAR_
+  # All the dynamic replaced variables in configuration files.
+  VAR_SERVER_NAME: ${SERVER_NAME} # I think this will work?
+  VAR_DB_MARIADB_IP: MariaDB
+  VAR_DB_MARIADB_PORT: 3306
+  VAR_DB_REDIS_IP: RedisDB
+  VAR_DB_REDIS_PORT: 6379
+  VAR_DB_REDIS_PASS: ${VAR_DB_REDIS_PASS}
+  VAR_TOKEN_CRAFTINGSTORE: ${VAR_TOKEN_CRAFTINGSTORE}
+  VAR_TOKEN_DISCORD: ${VAR_TOKEN_DISCORD}
+  VAR_DB_PASS_CARBON: ${VAR_DB_PASS_CARBON}
+  VAR_DB_PASS_DSRV: ${VAR_DB_PASS_DSRV}
+  VAR_DB_PASS_ECO: ${VAR_DB_PASS_ECO}
+  VAR_DB_PASS_PCGF: ${VAR_DB_PASS_PCGF}
+  VAR_DB_PASS_PLAN: ${VAR_DB_PASS_PLAN}
+  VAR_DB_PASS_PP: ${VAR_DB_PASS_PP}
+  VAR_DB_PASS_REP: ${VAR_DB_PASS_REP}
+  VAR_DB_PASS_CON: ${VAR_DB_PASS_CON}
+  VAR_DB_PASS_LB: ${VAR_DB_PASS_LB}
+  VAR_DB_PASS_VOTE: ${VAR_DB_PASS_VOTE}
+  VAR_DB_PASS_ECON: ${VAR_DB_PASS_ECON}
+  VAR_DB_PASS_DYN: ${VAR_DB_PASS_DYN}
+  VAR_DB_PASS_LP: ${VAR_DB_PASS_LP}
+  VAR_VELOCITY_SECRET: ${VAR_VELOCITY_SECRET}
+
+x-common-console: &common
+  restart: always
+  tty: true
+  stdin_open: true
+  external_links: [ "database" ]
+
+x-tentacles-environment: &tentacles-env
+  <<: *common-env
+  EULA: true
+  TYPE: PURPUR
+  FORCE_REDOWNLOAD: true
+  PURPUR_DOWNLOAD_URL: "https://github.com/DaRacci/Tentacles/releases/latest/download/tentacles-1.19.2.jar"
+  USE_AIKAR_FLAGS: true
+  USE_SIMD_FLAGS: true
+  # Server Properties
+  ENFORCE_SECURE_PROFILE: false # Fuck you Mojang.
+  ENABLE_COMMAND_BLOCKS: false
+  ONLINE_MODE: false
+  NETWORK_COMPRESSION_THRESHOLD: -1 # Disable compression for proxy running on same host.
+  VAR_ITEMSADDER_SLAVE: true
+  VAR_ITEMSADDER_PARENT: false
+
+x-tentacles-server: &tentacles-server
+  <<: *common
+  image: itzg/minecraft-server:java17-alpine
+  restart: unless-stopped
+
+services:
+
+  survival:
+    container_name: minecraft_survival
+    image: racci/amp-dockerized:latest
+    mac_address: 02:42:AC:CF:86:C6
+    stop_grace_period: 60s
+    restart: unless-stopped
+    volumes:
+      - /docker/amp/scripts:/home/amp/scripts
+      - /docker/amp/survival:/home/amp/.ampdata
+      - /docker/amp/.server_env:/home/amp/.server_env
+    ports: [ "8009:8080", "25567:25565", "8010:8123" ]
+    environment:
+      - UID=${UID}
+      - GID=${GID}
+      - TZ=${TIMEZONE}
+      - MODULE=Minecraft
+      - USERNAME=${USERNAME}
+      - PASSWORD=${PASSWORD}
+      - LICENCE=${AMP_LICENCE}
+      - SERVER_SYNC_CONTEXTS=minecraft;survival
+      - SERVER=survival
+      - VAR_PLUGIN_UAR_TIME=daily;03;00
+    networks:
+      proxy:
+        ipv4_address: 172.240.1.62
+      default:
+        ipv4_address: 172.240.5.15
+      database:
+        ipv4_address: 172.240.3.72
+    <<: *healthcheck
+
+  proxy:
+    <<: *common
+    container_name: minecraft_proxy
+    image: itzg/bungeecord:latest
+    environment:
+      <<: *common-env
+      TYPE: VELOCITY
+      SERVER_NAME: "proxy"
+      NETWORKADDRESS_CACHE_TTL: 30
+      ENABLE_RCON: true
+      PLUGINS: "https://ci.exceptionflug.de/job/Protocolize2/lastSuccessfulBuild/artifact/protocolize-velocity/target/protocolize-velocity.jar,https://ci.lucko.me/job/spark/lastSuccessfulBuild/artifact/spark-velocity/build/libs/*zip*/libs.zip,https://github.com/kennytv/Maintenance/releases/latest/download/MaintenanceVelocity.jar"
+      SPIGET_PLUGINS: "31331,45439,81063,13449,32536,15358"
+    ports:
+      - "25565:25577"
+      - "25565:25577/udp" # Query
+      - "8804:8804" # Plan metrics
+      - "8192:8192" # Votifier
+    networks: [ "proxy", "default" ]
+    volumes: [ "proxy-data:/server", "proxy-plugins:/plugins", "proxy-configs:/config", "patches:/patches" ]
+    deploy: &resources-light
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          cpus: '0.25'
+          memory: 2G
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.minecraft_proxy.rule=Host(`${PROXY_FQDN}`)"
+      - "traefik.tcp.routers.minecraft_proxy.service=minecraft_proxy"
+      - "traefik.tcp.routers.minecraft_proxy.entrypoints=minecraft"
+      - "traefik.tcp.services.minecraft_proxy.loadbalancer.server.port=25577"
+
+  hub:
+    <<: *tentacles-server
+    container_name: minecraft_hub
+    environment: &limited-env
+      <<: *tentacles-env
+      SERVER_NAME: hub
+      ALLOW_NETHER: false
+      ANNOUNCE_PLAYER_ACHIEVEMENTS: false
+      SPAWN_ANIMALS: false
+      SPAWN_MONSTERS: false
+      SPAWN_NPCS: false
+      SPAWN_PROTECTIONS: 0
+      GENERATE_STRUCTURES: false
+      VIEW_DISTANCE: 8
+      SIMULATION_DISTANCE: 4
+      LEVEL: "Hub"
+      PLUGINS: "https://ci.dmulloy2.net/job/ProtocolLib/lastStableBuild/artifact/target/ProtocolLib.jar"
+      SPIGET_RESOURCES: "32536,31331,96927,62325,84967,82342,75974,19273,81436,6245,40261,64414,34315,27448,19254,25391,87610"
+      VAR_PLUGIN_UAR_TIME: "daily;03;30"
+      VAR_ITEMSADDER_SLAVE: true
+    volumes: [ "sub-data:/config", "hub-plugins:/plugins", "hub-data:/data", "patches:/patches" ]
+    deploy: *resources-light
+
+  creative:
+    <<: *tentacles-server
+    container_name: minecraft_creative
+    environment:
+      <<: *limited-env
+      FORCE_GAMEMODE: creative
+      SERVER_NAME: creative
+      PLUGINS: "https://ci.dmulloy2.net/job/ProtocolLib/lastStableBuild/artifact/target/ProtocolLib.jar"
+      SPIGET_RESOURCES: "32536,31331,96927,62325,84967,82342,75974,19273,81436,6245,40261,64414,34315,27448,19254,25391,87610"
+      VAR_PLUGIN_UAR_TIME: "daily;04;00"
+    volumes: [ "sub-data:/config", "creative-plugins:/plugins", "creative-data:/data", "patches:/patches" ]
+    deploy: *resources-light
+
+volumes:
+  proxy-data:
+    driver_opts: &local-opts
+      o: bind
+      type: none
+      device: /docker/minecraft/proxy
+  proxy-plugins:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/plugins/proxy
+  proxy-configs:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/configs/proxy
+
+  patches:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/patches
+
+  common-plugins:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/plugins/common
+
+  sub-data:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/configs/sub
+
+  hub-data:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/hub
+  hub-plugins:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/plugins/hub
+
+  creative-data:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/creative
+  creative-plugins:
+    driver_opts:
+      <<: *local-opts
+      device: /docker/minecraft/plugins/creative
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.240.5.0/24"
+
+  database:
+    name: database
+    external: true
+
+  proxy:
+    name: proxy
+    external: true
