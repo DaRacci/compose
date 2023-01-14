@@ -19,10 +19,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: 1
+          cpus: "1"
           memory: 500M
         reservations:
-          cpus: 0.25
+          cpus: "0.25"
           memory: 50M
 
   med-resources:
