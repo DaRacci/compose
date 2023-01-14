@@ -20,10 +20,10 @@ services:
       resources:
         limits:
           cpus: "1"
-          memory: 500M
+          memory: 512M
         reservations:
           cpus: "0.25"
-          memory: 50M
+          memory: 64M
 
   med-resources:
     extends:
@@ -32,11 +32,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: 2
-          memory: 1G
+          cpus: "2"
+          memory: 1024M
         reservations:
-          cpus: 0.5
-          memory: 150M
+          cpus: "0.5"
+          memory: 192M
 
   high-resources:
     extends:
@@ -45,11 +45,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: 4
-          memory: 2G
+          cpus: "4"
+          memory: 2048M
         reservations:
-          cpus: 1
-          memory: 250M
+          cpus: "1"
+          memory: 384M
 
 volumes:
   tz:
