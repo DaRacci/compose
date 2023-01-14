@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+version: "3.9"
+
+services:
+  base:
+    volumes: [ /etc/localtime:/etc/localtime:ro ]
+    dns: [ 1.1.1.1, 1.0.0.1 ]
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 45s
+
+  low-resources:
+    extends:
+      file: common.yml
+      service: base
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 500M
+        reservations:
+          cpus: 0.25
+          memory: 50M
+
+  med-resources:
+    extends:
+      file: common.yml
+      service: base
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: 1G
+        reservations:
+          cpus: 0.5
+          memory: 150M
+
+  high-resources:
+    extends:
+      file: common.yml
+      service: base
+    deploy:
+      resources:
+        limits:
+          cpus: 4
+          memory: 2G
+        reservations:
+          cpus: 1
+          memory: 250M
+
+volumes:
+  tz:
+    driver: local
+    driver_opts:
+      o: bind
+      device: /etc/localtime
