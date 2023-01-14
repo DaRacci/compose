@@ -27,11 +27,11 @@ services:
       - CF_API_KEY=${CF_API_KEY}
     configs:
       - source: acme
-        target: /acme.json
+        target: /config/acme.json
       - source: traefik
         target: /traefik.yml
       - source: traefik-conf
-        target: /config.yml
+        target: /config/config.yml
     volumes:
       - type: bind
         source: /var/run/docker.sock
