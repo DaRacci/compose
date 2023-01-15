@@ -3,7 +3,13 @@ version: "3.9"
 
 services:
   base:
-    volumes: [ /etc/localtime:/etc/localtime:ro ]
+    volumes:
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind:
+          create_host_path: false
     dns: [ 1.1.1.1, 1.0.0.1 ]
     deploy:
       restart_policy:
