@@ -31,7 +31,7 @@ services:
     depends_on: [ agent ]
     volumes:
       - type: bind
-        source: /docker/portainer
+        source: /docker/portainer/data
         target: /data
     labels:
       traefik.enable: true
