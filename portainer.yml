@@ -1,7 +1,6 @@
 version: "3.9"
 
 x-common: &base
-  restart: always
   extends:
     file: common.yml
     service: low-resources
@@ -10,19 +9,18 @@ services:
   agent:
     <<: *base
     image: portainer/agent:latest
+    expose: [ 9001 ]
     volumes:
-      - type: bind
+      - &read_no_create type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
         read_only: true
         bind:
           create_host_path: false
       - type: bind
+        <<: *read_no_create
         source: /var/lib/docker/volumes
         target: /var/lib/docker/volumes
-        read_only: true
-        bind:
-          create_host_path: false
 
   portainer:
     <<: *base
@@ -44,5 +42,12 @@ services:
 
 networks:
   default:
+    attachable: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+  proxy:
     name: proxy
     external: true
