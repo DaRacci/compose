@@ -11,16 +11,18 @@ services:
     image: portainer/agent:latest
     expose: [ 9001 ]
     volumes:
-      - &read_no_create type: bind
+      - type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        <<: *read_no_create
         source: /var/lib/docker/volumes
         target: /var/lib/docker/volumes
+        read_only: true
+        bind:
+          create_host_path: false
 
   portainer:
     <<: *base
