@@ -32,6 +32,11 @@ services:
         type: bind
         bind:
           create_host_path: false
+      - source: /docker/pihole/pihole-cname.conf
+        target: /etc/dnsmasq.d/05-pihole-custom-cname.conf
+        type: bind
+        bind:
+          create_host_path: false
     environment:
       WEBPASSWORD: ${WEBPASSWORD}
       WEBTHEME: "default-dark"
@@ -46,7 +51,6 @@ services:
       REV_SERVER_CIDR: "192.168.2.0/24" # Networks CIDR
       REV_SERVER_TARGET: "192.168.2.1" # Gateway
       FTLCONF_LOCAL_IPV4: 192.168.2.156 # The IP of the server running Pi-hole
-
     networks:
       default:
         ipv4_address: 172.240.1.3
