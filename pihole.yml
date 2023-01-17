@@ -1,29 +1,55 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
 version: "3.9"
 
+configs:
+  traefik-dnsmasq:
+    file: /docker/pihole/traefik-dnsmasq.conf
+
+networks:
+  default:
+    name: proxy
+    external: true
+
+
 services:
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
-    restart: always
     ports: [ "53:53/tcp", "53:53/udp" ]
+    cap_add: [ "CAP_NET_BIND_SERVICE", "CAP_SYS_NICE", "CAP_CHOWN" ]
     extends:
       file: common.yml
       service: med-resources
+    configs:
+      - source: traefik-dnsmasq
+        target: /etc/dnsmasq.d/99-traefik.conf
+    volumes:
+      - source: /docker/pihole/custom.list
+        target: /etc/pihole/custom.list
+        type: bind
+      - source: /docker/pihole/pihole-FTL.db
+        target: /etc/pihole/pihole-FTL.db
+        type: bind
+        bind:
+          create_host_path: false
     environment:
       WEBPASSWORD: ${WEBPASSWORD}
-      PIHOLE_DNS_: "1.1.1.1;1.0.0.1"
-      ServerIP: 192.168.2.156 # This is the IP of the server running Pi-hole
-      VIRTUAL_HOST: "pihole.local.racci.dev"
       WEBTHEME: "default-dark"
       WEBUIBOXEDLAYOUT: "traditional"
+      INTERFACE: "eth0"
+      VIRTUAL_HOST: "pihole.local.racci.dev"
+      PIHOLE_DNS_: "1.1.1.1;1.0.0.1"
+      IPv6: "false"
+      DNS_BOGUS_PRIV: "false"
+      DNS_FQDN_REQUIRED: "false"
+      REV_SERVER: "true"
+      REV_SERVER_CIDR: "192.168.2.0/24" # Networks CIDR
+      REV_SERVER_TARGET: "192.168.2.1" # Gateway
+      FTLCONF_LOCAL_IPV4: 192.168.2.156 # The IP of the server running Pi-hole
 
     networks:
       default:
         ipv4_address: 172.240.1.3
-    volumes:
-      - "/docker/pihole/pihole/:/etc/pihole/"
-      - "/docker/pihole/dnsmasq.d/:/etc/dnsmasq.d/"
     labels:
       traefik.enable: true
       traefik.docker.network: "proxy"
@@ -33,8 +59,3 @@ services:
       traefik.http.routers.pihole.tls: true
       traefik.http.services.pihole.loadbalancer.server.port: "80"
       traefik.http.middlewares.pihole-admin.addprefix.prefix: "/admin"
-
-networks:
-  default:
-    name: proxy
-    external: true
