@@ -27,8 +27,9 @@ services:
   portainer:
     <<: *base
     image: portainer/portainer-ee:latest
-    security_opt: [ no-new-privileges:true ]
+    security_opt: [ no-new-privileges=true ]
     depends_on: [ agent ]
+    networks: [ proxy ]
     volumes:
       - type: bind
         source: /docker/portainer/data
