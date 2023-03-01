@@ -13,8 +13,7 @@ services:
   traefik:
     container_name: traefik
     image: traefik:latest
-    restart: always
-    security_opt: [ no-new-privileges:true ]
+    security_opt: [ no-new-privileges=true ]
     ports: [ "80:80", "443:443" ]
     extends:
       file: common.yml

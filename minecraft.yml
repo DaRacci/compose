@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
 version: "3.9"
 
 # TODO: Remove once survival is migrated away from AMP.
@@ -85,7 +86,7 @@ services:
       - /docker/amp/scripts:/home/amp/scripts
       - /docker/amp/survival:/home/amp/.ampdata
       - /docker/amp/.server_env:/home/amp/.server_env
-    ports: [ "8009:8080", "25567:25565", "8010:8123" ]
+    # ports: [ "8009:8080", "25567:25565", "8010:8123" ]
     environment:
       - UID=${UID}
       - GID=${GID}
@@ -118,11 +119,11 @@ services:
       ENABLE_RCON: true
       PLUGINS: "https://ci.exceptionflug.de/job/Protocolize2/lastSuccessfulBuild/artifact/protocolize-velocity/target/protocolize-velocity.jar,https://ci.lucko.me/job/spark/lastSuccessfulBuild/artifact/spark-velocity/build/libs/*zip*/libs.zip,https://github.com/kennytv/Maintenance/releases/latest/download/MaintenanceVelocity.jar"
       SPIGET_PLUGINS: "31331,45439,81063,13449,32536,15358"
-    ports:
-      - "25565:25577"
-      - "25565:25577/udp" # Query
-      - "8804:8804" # Plan metrics
-      - "8192:8192" # Votifier
+    # ports:
+    #   - "25565:25577"
+    #   - "25565:25577/udp" # Query
+    #   - "8804:8804" # Plan metrics
+    #   - "8192:8192" # Votifier
     networks: [ "proxy", "default" ]
     volumes: [ "proxy-data:/server", "proxy-plugins:/plugins", "proxy-configs:/config", "patches:/patches" ]
     deploy: &resources-light

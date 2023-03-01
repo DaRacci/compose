@@ -30,13 +30,9 @@ services:
       - source: /docker/pihole/pihole-FTL.db
         target: /etc/pihole/pihole-FTL.db
         type: bind
-        bind:
-          create_host_path: false
       - source: /docker/pihole/pihole-cname.conf
         target: /etc/dnsmasq.d/05-pihole-custom-cname.conf
         type: bind
-        bind:
-          create_host_path: false
     environment:
       WEBPASSWORD: ${WEBPASSWORD}
       WEBTHEME: "default-dark"
@@ -48,9 +44,9 @@ services:
       DNS_BOGUS_PRIV: "false"
       DNS_FQDN_REQUIRED: "false"
       REV_SERVER: "true"
-      REV_SERVER_CIDR: "192.168.2.0/24" # Networks CIDR
-      REV_SERVER_TARGET: "192.168.2.1" # Gateway
-      FTLCONF_LOCAL_IPV4: 192.168.2.156 # The IP of the server running Pi-hole
+      REV_SERVER_CIDR: ${SVR_CIDR}    # Networks CIDR
+      REV_SERVER_TARGET: ${SVR_GATE}  # Gateway
+      FTLCONF_LOCAL_IPV4: ${SVR_IPv4} # The IP of the server running Pi-hole
     networks:
       default:
         ipv4_address: 172.240.1.3
