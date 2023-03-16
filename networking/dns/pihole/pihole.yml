@@ -35,8 +35,8 @@ networks:
 services:
   cloudflared:
     extends:
-     file: ../../../common.yml
-     service: base
+      file: ../../../common.yml
+      service: base
 
     image: *cloudflared_container_image
     container_name: *cloudflared_container_name
