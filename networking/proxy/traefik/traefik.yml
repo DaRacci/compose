@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+version: "3.9"
+
+
+x-variables:
+  PROXY_NAME: &proxy_name ${PROXY_NAME:-proxy}
+  PROXY_SUBNET: &proxy_subnet ${PROXY_SUBNET:-172.240.1.0/24}
+
+  CONTAINER_NAME: &container_name ${CONTAINER_NAME:-traefik}
+  CONTAINER_IMAGE: &container_image ${CONTAINER_IMAGE:-traefik:latest}
+
+  AUTH_USERS: &auth_users ${AUTH_USERS}
+  CF_API: &cf_api [ "CF_API_EMAIL=${CF_API_EMAIL}" , "CF_API_KEY=${CF_API_KEY}" ]
+  DOMAIN: &domain ${DOMAIN}
+
+networks:
+  default:
+    name: *proxy_name
+    ipam:
+      config:
+        - subnet: *proxy_subnet
+
+
+services:
+  traefik:
+    extends:
+      file: common.yml
+      service: low-resources
+
+    image: *container_image
+    container_name: *container_name
+    environment: *cf_api
+
+    security_opt: [ no-new-privileges=true ]
+    ports: [ *web_port, *websecure_port ]
+    volumes: [ "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    command: [
+      "--api.dashboard=true",
+      "--providers.docker=true",
+      "--providers.docker.exposedbydefault=false",
+      "--providers.docker.defaultRule: 'Host(`{{ trimPrefix `/` .Name }}.${DOMAIN}`)'",
+      "--entrypoints.web.address=:80",
+      "--entrypoints.websecure.address=:443",
+      "--certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}",
+      "--certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json",
+      "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare",
+      "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers[0]=1.1.1.1:53",
+      "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers[0]=1.0.0.0:53"
+    ]
+    labels:
+      traefik.enable: true
+      traefik.docker.network: *network_name
+      traefik.http.routers.traefik.entrypoints: "websecure"
+      traefik.http.routers.traefik.rule: "Host(`admin.${DOMAIN}`) && PathPrefix(`/api`, `/dashboard`)"
+      traefik.http.routers.traefik.tls: true
+      traefik.http.routers.traefik.tls.certresolver: "cloudflare"
+      traefik.http.routers.traefik.service: "api@internal"
+      # traefik.http.services.traefik.loadbalancer.server.port: "8080"
+
+      traefik.http.routers.traefik.middlewares: "auth"
+      traefik.http.middlewares.auth.basicauth.users: *auth_users
+
+      # traefik.http.routers.node.tls: "true"
+      # traefik.http.routers.node.tls.certresolver: "cloudflare"
+      # traefik.http.routers.node.tls.domains[0].main: "cloud.racci.dev"
+      # traefik.http.routers.node.tls.domains[0].sans: "*.cloud.racci.dev"
