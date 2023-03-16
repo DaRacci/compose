@@ -69,8 +69,8 @@ services:
       WEBTHEME: "default-dark"
       WEBUIBOXEDLAYOUT: "traditional"
 
-      VIRTUAL_HOST: "pihole.$${DOMAIN}"
-      PIHOLE_DNS_: "$${CLOUDFLARED_CONTAINER_NAME:-cloudflared}#5054;1.1.1.1"
+      VIRTUAL_HOST: "pihole.${DOMAIN}"
+      PIHOLE_DNS_: "${CLOUDFLARED_CONTAINER_NAME:-cloudflared}#5054;1.1.1.1"
 
       IPv6: true
       INTERFACE: *interface
@@ -84,7 +84,7 @@ services:
       traefik.enable: true
       traefik.docker.network: *proxy_name
       traefik.http.routers.pihole.entrypoints: "websecure"
-      traefik.http.routers.pihole.rule: "Host(`pihole.$${DOMAIN}`)"
+      traefik.http.routers.pihole.rule: "Host(`pihole.${DOMAIN}`)"
       traefik.http.routers.pihole.middlewares: "pihole-admin"
       traefik.http.routers.pihole.tls: true
       # traefik.http.services.pihole.loadbalancer.server.port: "80"
