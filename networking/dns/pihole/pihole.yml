@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+version: "3.9"
+
+
+x-variables:
+  PROXY_NAME: &proxy_name ${PROXY_NAME:-proxy}
+
+  CLOUDFLARED_CONTAINER_NAME: &cloudflared_container_name ${CLOUDFLARED_CONTAINER_NAME:-cloudflared}
+  CLOUDFLARED_CONTAINER_IMAGE: &cloudflared_container_image ${CLOUDFLARED_CONTAINER_IMAGE:-visibilityspots/cloudflared:latest}
+
+  PIHOLE_CONTAINER_NAME: &pihole_container_name ${PIHOLE_CONTAINER_NAME:-pihole}
+  PIHOLE_CONTAINER_IMAGE: &pihole_container_image ${PIHOLE_CONTAINER_IMAGE:-pihole/pihole:latest}
+  PIHOLE_WEBPASSWORD: &webpassword ${WEBPASSWORD}
+  PIHOLE_INTERFACE: &interface ${INTERFACE:-eth0}
+  PIHOLE_LAN_CIDR: &lan_cidr ${LAN_CIDR}
+  PIHOLE_LAN_GATEWAY: &lan_gateway ${LAN_GATEWAY}
+  PIHOLE_LAN_DOMAIN: &lan_domain ${LAN_DOMAIN:-}
+  PIHOLE_LAN_ADDRESS_IPv4: &lan_address_v4 ${LAN_ADDRESS_IPv4}
+  PIHOLE_LAN_ADDRESS_IPv6: &lan_address_v6 ${LAN_ADDRESS_IPv6:-}
+
+  DOMAIN: &domain ${DOMAIN}
+
+
+configs:
+  wildcard-dnsmasq:
+    file: ./dnsmasq.conf
+
+
+networks:
+  default:
+    name: *proxy_name
+    external: true
+
+
+services:
+  cloudflared:
+    extends:
+      file: common.yml
+      service: base
+
+    image: *cloudflared_container_image
+    container_name: *cloudflared_container_name
+    ports: [ "5054:5054/tcp", "5054:5054/udp" ]
+    # TODO :: Secure Address
+    environment: [ "PORT=5054", "ADDRESS=0.0.0.0" ]
+
+  pihole:
+    extends:
+      file: common.yml
+      service: low-resources
+
+    image: *pihole_container_image
+    container_name: *pihole_container_name
+    depends_on: [ "cloudflared" ]
+    volumes: [ "./pihole/etc:/etc/pihole", "./pihole/dnsmasq.d:/etc/dnsmasq.d" ]
+    configs: [ "wildcard-dnsmasq/etc/dnsmasq.d/07-wildcard.conf" ]
+
+
+    cap_add: [ "NET_ADMIN", "CAP_NET_BIND_SERVICE", "CAP_NET_RAW", "CAP_NET_ADMIN", "CAP_SYS_NICE", "CAP_CHOWN" ]
+    ports: [ "53:53/tcp", "53:53/udp", "67:67/udp" ]
+    dns: [ "127.0.0.1", "1.1.1.1", "1.0.0.1" ]
+
+    environment:
+      WEBPASSWORD: *webpassword
+
+      WEBTHEME: "default-dark"
+      WEBUIBOXEDLAYOUT: "traditional"
+
+      VIRTUAL_HOST: "pihole.${DOMAIN}"
+      PIHOLE_DNS_: "${CLOUDFLARED_CONTAINER_NAME:-cloudflared}#5054;1.1.1.1"
+
+      IPv6: true
+      INTERFACE: *interface
+      REV_SERVER: true
+      REV_SERVER_CIDR: *lan_cidr
+      REV_SERVER_DOMAIN: *lan_domain
+      REV_SERVER_TARGET: *lan_gateway
+      FTLCONF_LOCAL_IPV4: *lan_address_v4
+      FTLCONF_LOCAL_IPV6: *lan_address_v6
+    labels:
+      traefik.enable: true
+      traefik.docker.network: *proxy_name
+      traefik.http.routers.pihole.entrypoints: "websecure"
+      traefik.http.routers.pihole.rule: "Host(`pihole.${DOMAIN}`)"
+      traefik.http.routers.pihole.middlewares: "pihole-admin"
+      traefik.http.routers.pihole.tls: true
+      traefik.http.services.pihole.loadbalancer.server.port: "80"
+      traefik.http.middlewares.pihole-admin.addprefix.prefix: "/admin"
+
+      com.centurylinklabs.watchtower.lifecycle.post-update: "./updateGravity"
