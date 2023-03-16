@@ -34,9 +34,9 @@ networks:
 
 services:
   cloudflared:
-    extends:
-      file: ../../../common.yml
-      service: base
+    #extends:
+    #  file: ../../../common.yml
+    #  service: base
 
     image: *cloudflared_container_image
     container_name: *cloudflared_container_name
@@ -45,18 +45,18 @@ services:
     environment: [ "PORT=5054", "ADDRESS=0.0.0.0" ]
 
   pihole:
-    extends:
-      file: ../../../common.yml
-      service: low-resources
+    #extends:
+    #  file: ../../../common.yml
+    #  service: low-resources
 
     image: *pihole_container_image
     container_name: *pihole_container_name
     depends_on: [ "cloudflared" ]
     volumes: [ "./pihole/etc:/etc/pihole", "./pihole/dnsmasq.d:/etc/dnsmasq.d" ]
-    # configs: [ "wildcard-dnsmasq:/etc/dnsmasq.d/07-wildcard.conf" ]
-    configs:
-      - source: wildcard-dnsmasq
-        target: /etc/dnsmasq.d/07-wildcard.conf
+    configs: [ "wildcard-dnsmasq:/etc/dnsmasq.d/07-wildcard.conf" ]
+    # configs:
+    #   - source: wildcard-dnsmasq
+    #     target: /etc/dnsmasq.d/07-wildcard.conf
 
     cap_add: [ "NET_ADMIN", "CAP_NET_BIND_SERVICE", "CAP_NET_RAW", "CAP_NET_ADMIN", "CAP_SYS_NICE", "CAP_CHOWN" ]
     ports: [ "53:53/tcp", "53:53/udp", "67:67/udp" ]
