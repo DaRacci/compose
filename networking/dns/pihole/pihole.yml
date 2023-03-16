@@ -53,7 +53,9 @@ services:
     container_name: *pihole_container_name
     depends_on: [ "cloudflared" ]
     volumes: [ "./pihole/etc:/etc/pihole", "./pihole/dnsmasq.d:/etc/dnsmasq.d" ]
-    configs: [ "wildcard:/etc/dnsmasq.d/07-wildcard.conf" ]
+    configs:
+      - source: wildcard
+        target: /etc/dnsmasq.d/07-wildcard.conf"
 
     image: *pihole_container_image
     #build:
