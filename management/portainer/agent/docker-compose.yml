@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+version: "3.9"
+
+
+services:
+  # TODO :: Traefik integration
+  agent:
+    extends:
+      file: ../../../common.yml
+      service: low-resources
+
+    image: portainer/agent:alpine
+    environment:
+      AGENT_SECRET: ${AGENT_SECRET:?err}
+
+    expose: [ 9001 ]
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+      - type: bind
+        source: /var/lib/docker/volumes
+        target: /var/lib/docker/volumes
+        read_only: true

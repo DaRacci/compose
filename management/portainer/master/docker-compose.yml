@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+version: "3.9"
+
+
+x-variables:
+  PROXY_NAME: &proxy_name ${PROXY_NAME:-proxy}
+  PROXY_DOMAIN: &proxy_domain ${PROXY_DOMAIN:?err}
+  INTERNAL_SUBNET: &internal_subnet ${INTERNAL_SUBNET:-172.24.0.0/24}
+
+
+networks:
+  default:
+    attachable: false
+    ipam:
+      driver: default
+      config:
+        - subnet: *internal_subnet
+
+  proxy:
+    name: proxy_name
+    external: true
+
+
+services:
+  agent:
+    extends:
+      file: ../agent/docker-compose.yml
+      service: agent
+
+
+  portainer:
+    extends:
+      file: ../../../common.yml
+      service: low-resources
+
+    image: portainer/portainer-ee:alpine
+    depends_on: [ agent ]
+    networks: [ default, proxy ]
+    security_opt: [ no-new-privileges=true ]
+
+    volumes:
+      - type: bind
+        source: /docker/portainer/data
+        target: /data
+
+    labels:
+      traefik.enable: true
+      traefik.docker.network: *proxy_name
+      traefik.http.routers.portainer.tls: true
+      traefik.http.routers.portainer.entrypoints: "websecure"
+      traefik.http.routers.portainer.rule: "Host(`portainer.${PROXY_DOMAIN:-homelab.local}`)"
+      traefik.http.services.portainer.loadbalancer.server.port: "9000"
