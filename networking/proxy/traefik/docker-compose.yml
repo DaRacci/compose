@@ -10,12 +10,17 @@ x-variables:
   AUTH_USERS: &auth_users ${AUTH_USERS:?err}
   CF_API: &cf_api [ "CF_API_EMAIL=${CF_API_EMAIL:?err}", "CF_API_KEY=${CF_API_KEY:?err}" ]
 
+
 networks:
   default:
     name: *proxy_name
     ipam:
       config:
         - subnet: *proxy_subnet
+
+
+volumes:
+  acme:
 
 
 services:
@@ -30,7 +35,11 @@ services:
 
     security_opt: [ no-new-privileges=true ]
     ports: [ 80:80, 443:443 ]
-    volumes: [ "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    volumes: [ "acme:/letsencrypt", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    entrypoint: [
+      "/bin/sh \"if [ ! -z /letsencrypt/acme.json ]; then touch /letsencrypt/acme.json; fi\"",
+      "/entrypoint.sh"
+    ]
     command: [
       "--api.dashboard=true",
       "--providers.docker=true",
