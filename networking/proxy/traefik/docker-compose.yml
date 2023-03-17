@@ -36,10 +36,6 @@ services:
     security_opt: [ no-new-privileges=true ]
     ports: [ 80:80, 443:443 ]
     volumes: [ "acme:/letsencrypt", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
-    entrypoint: [
-      "/bin/sh \"if [ ! -z /letsencrypt/acme.json ]; then touch /letsencrypt/acme.json; fi\"",
-      "/entrypoint.sh"
-    ]
     command: [
       "--api.dashboard=true",
       "--providers.docker=true",
