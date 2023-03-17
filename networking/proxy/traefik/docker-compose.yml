@@ -25,7 +25,7 @@ services:
       file: ../../../common.yml
       service: low-resources
 
-    image: *container_image
+    image: traefik:latest
     environment: *cf_api
 
     security_opt: [ no-new-privileges=true ]
