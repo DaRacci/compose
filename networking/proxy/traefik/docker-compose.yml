@@ -46,7 +46,7 @@ services:
     ]
     labels:
       traefik.enable: true
-      traefik.docker.network: *network_name
+      traefik.docker.network: *proxy_name
       traefik.http.routers.traefik.entrypoints: "websecure"
       traefik.http.routers.traefik.rule: "Host(`admin.${PROXY_DOMAIN:?err}`) && PathPrefix(`/api`, `/dashboard`)"
       traefik.http.routers.traefik.tls: true
