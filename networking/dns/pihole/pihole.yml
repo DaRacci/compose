@@ -4,21 +4,15 @@ version: "3.9"
 
 x-variables:
   PROXY_NAME: &proxy_name ${PROXY_NAME:-proxy}
+  PROXY_DOMAIN: &proxy_domain ${DOMAIN:?err}
 
-  CLOUDFLARED_CONTAINER_NAME: &cloudflared_container_name ${CLOUDFLARED_CONTAINER_NAME:-cloudflared}
-  CLOUDFLARED_CONTAINER_IMAGE: &cloudflared_container_image ${CLOUDFLARED_CONTAINER_IMAGE:-visibilityspots/cloudflared:latest}
-
-  PIHOLE_CONTAINER_NAME: &pihole_container_name ${PIHOLE_CONTAINER_NAME:-pihole}
-  PIHOLE_CONTAINER_IMAGE: &pihole_container_image ${PIHOLE_CONTAINER_IMAGE:-pihole/pihole:latest}
-  PIHOLE_WEBPASSWORD: &webpassword ${WEBPASSWORD}
-  PIHOLE_INTERFACE: &interface ${INTERFACE:-eth0}
-  PIHOLE_LAN_CIDR: &lan_cidr ${LAN_CIDR}
-  PIHOLE_LAN_GATEWAY: &lan_gateway ${LAN_GATEWAY}
+  PIHOLE_WEBPASSWORD: &webpassword ${WEBPASSWORD:?err}
+  PIHOLE_INTERFACE: &interface ${INTERFACE:?err}
+  PIHOLE_LAN_CIDR: &lan_cidr ${LAN_CIDR:?err}
+  PIHOLE_LAN_GATEWAY: &lan_gateway ${LAN_GATEWAY:?err}
   PIHOLE_LAN_DOMAIN: &lan_domain ${LAN_DOMAIN:-}
-  PIHOLE_LAN_ADDRESS_IPv4: &lan_address_v4 ${LAN_ADDRESS_IPv4}
+  PIHOLE_LAN_ADDRESS_IPv4: &lan_address_v4 ${LAN_ADDRESS_IPv4:?err}
   PIHOLE_LAN_ADDRESS_IPv6: &lan_address_v6 ${LAN_ADDRESS_IPv6:-}
-
-  DOMAIN: &domain ${DOMAIN}
 
 
 networks:
@@ -33,8 +27,7 @@ services:
       file: ../../../common.yml
       service: base
 
-    image: *cloudflared_container_image
-    container_name: *cloudflared_container_name
+    image: visibilityspots/cloudflared:latest
     ports: [ "5054:5054/tcp", "5054:5054/udp" ]
     # TODO :: Secure Address
     environment: [ "PORT=5054", "ADDRESS=0.0.0.0" ]
@@ -44,8 +37,7 @@ services:
       file: ../../../common.yml
       service: low-resources
 
-    image: *pihole_container_image
-    container_name: *pihole_container_name
+    image: pihole/pihole:latest
     depends_on: [ "cloudflared" ]
     volumes: [ "./pihole/etc:/etc/pihole", "./pihole/dnsmasq.d:/etc/dnsmasq.d" ]
 
@@ -55,15 +47,15 @@ services:
 
     environment:
       HOST: *lan_address_v4
-      DOMAIN: *domain
+      DOMAIN: *proxy_domain
 
       WEBPASSWORD: *webpassword
 
       WEBTHEME: "default-dark"
       WEBUIBOXEDLAYOUT: "traditional"
 
-      VIRTUAL_HOST: "pihole.${DOMAIN}"
-      PIHOLE_DNS_: "${CLOUDFLARED_CONTAINER_NAME:-cloudflared}#5054;1.1.1.1"
+      VIRTUAL_HOST: "pihole.${PROXY_DOMAIN:?err}"
+      PIHOLE_DNS_: "cloudflared#5054;1.1.1.1"
 
       IPv6: true
       INTERFACE: *interface
@@ -76,11 +68,11 @@ services:
     labels:
       traefik.enable: true
       traefik.docker.network: *proxy_name
-      traefik.http.routers.pihole.entrypoints: "websecure"
-      traefik.http.routers.pihole.rule: "Host(`pihole.${DOMAIN}`)"
-      traefik.http.routers.pihole.middlewares: "pihole-admin"
       traefik.http.routers.pihole.tls: true
-      # traefik.http.services.pihole.loadbalancer.server.port: "80"
+      traefik.http.routers.pihole.entrypoints: "websecure"
+      traefik.http.routers.pihole.rule: "Host(`pihole.${PROXY_DOMAIN:?err}`)"
+      traefik.http.routers.pihole.middlewares: "pihole-admin"
+      traefik.http.services.pihole.loadbalancer.server.port: "80"
       traefik.http.middlewares.pihole-admin.addprefix.prefix: "/admin"
 
       com.centurylinklabs.watchtower.lifecycle.post-update: "./updateGravity"
